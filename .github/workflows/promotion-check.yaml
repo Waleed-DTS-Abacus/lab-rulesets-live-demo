@@ -1,0 +1,46 @@
+
+name: Promotion Check
+
+on:
+  pull_request:
+    branches:
+      - moj-uat
+      - moj
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-check:
+    name: validate-promotion
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate Promotion Path
+        shell: bash
+        env:
+          SOURCE_BRANCH: ${{ github.head_ref }}
+          TARGET_BRANCH: ${{ github.base_ref }}
+          DEV_BRANCH: ${{ vars.DEV_BRANCH }}
+          UAT_BRANCH: ${{ vars.UAT_BRANCH }}
+          PROD_BRANCH: ${{ vars.PROD_BRANCH }}
+        run: |
+          set -euo pipefail
+
+          echo "Source: $SOURCE_BRANCH"
+          echo "Target: $TARGET_BRANCH"
+
+          if [[ -z "$DEV_BRANCH" || -z "$UAT_BRANCH" || -z "$PROD_BRANCH" ]]; then
+            echo "FAIL: Promotion branch variables are missing"
+            exit 1
+          fi
+
+          if [[ "$SOURCE_BRANCH" == "$DEV_BRANCH" && "$TARGET_BRANCH" == "$UAT_BRANCH" ]]; then
+            echo "PASS: Development to UAT promotion allowed"
+          elif [[ "$SOURCE_BRANCH" == "$UAT_BRANCH" && "$TARGET_BRANCH" == "$PROD_BRANCH" ]]; then
+            echo "PASS: UAT to Production promotion allowed"
+          else
+            echo "FAIL: Unauthorized promotion path"
+            exit 1
+          fi
